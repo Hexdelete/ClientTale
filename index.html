@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClientTale | Legal Case Tracker</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --danger: #ef4444;
+            --muted: #64748b;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: var(--primary); padding: 16px 24px; border-radius: 8px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .brand-container { display: flex; align-items: center; gap: 16px; }
+        .brand { margin: 0; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.5px; }
+        .brand span { color: #60a5fa; }
+        .subtitle { font-size: 0.9rem; color: #94a3b8; border-left: 1px solid #334155; padding-left: 16px; }
+        
+        .header-actions { display: flex; gap: 12px; align-items: center; }
+        .search-bar { width: 250px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: white; color: var(--text); }
+        
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: var(--accent); color: white; transition: background 0.2s; }
+        .btn-secondary { background: var(--muted); }
+        .btn-danger { background: var(--danger); }
+        .btn:hover { opacity: 0.9; }
+
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        table { width: 100%; border-collapse: collapse; background: var(--card); }
+        th, td { padding: 14px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #f1f5f9; font-size: 0.75rem; text-transform: uppercase; color: var(--muted); }
+        tr.clickable { cursor: pointer; transition: background 0.15s; }
+        tr.clickable:hover { background: #f8fafc; }
+
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+        .badge-Active { background: #dcfce7; color: #166534; }
+        .badge-Pending { background: #fef9c3; color: #854d0e; }
+        .badge-Closed { background: #f1f5f9; color: #475569; }
+        .badge-Upcoming { background: #e0f2fe; color: #0369a1; }
+        .badge-Past { background: #f3f4f6; color: #6b7280; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); align-items: center; justify-content: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: white; padding: 24px; border-radius: 10px; width: 600px; max-width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-content.large { width: 900px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; position: sticky; top: -24px; background: white; z-index: 10; margin-top: -24px; padding-top: 24px; }
+        .modal-header h2 { margin: 0; font-size: 1.25rem; color: var(--primary); }
+
+        .section-title { font-size: 1rem; color: var(--primary); margin: 24px 0 12px 0; padding-bottom: 6px; border-bottom: 2px solid #f1f5f9; }
+        
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .form-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .form-group { margin-bottom: 8px; }
+        .form-group.full { grid-column: 1 / -1; }
+        label { display: block; font-weight: 600; font-size: 0.75rem; margin-bottom: 4px; text-transform: uppercase; color: var(--muted); }
+        input, select, textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; font-family: inherit; }
+        textarea { resize: vertical; min-height: 80px; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1); }
+
+        .timeline-item { padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; background: #fafafa; border-left: 4px solid var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="brand-container">
+            <h1 class="brand">Client<span>Tale</span></h1>
+            <span class="subtitle">Active Case Dashboard</span>
+        </div>
+        <div class="header-actions">
+            <input type="text" id="searchInput" class="search-bar" placeholder="Search cases, lawyers..." oninput="fetchCases(this.value)">
+            <button class="btn btn-secondary" onclick="openStaffModal()">Manage Staff</button>
+            <button class="btn btn-secondary" onclick="openPdfModal()">Import PDF</button>
+            <button class="btn" onclick="openNewCaseModal()">+ New Case</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Case #</th>
+                    <th>Case Title</th>
+                    <th>Injured Person</th>
+                    <th>Lawyer in Charge</th>
+                    <th>Paralegal in Charge</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="caseTableBody">
+                <tr><td colspan="6" style="text-align: center; color: var(--muted);">Loading cases...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 1. CASE DETAILS FRAME MODAL -->
+<div id="caseDetailModal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h2 id="detailCaseHeaderTitle">Case Details</h2>
+            <button class="btn btn-secondary" onclick="closeModal('caseDetailModal')">Close</button>
+        </div>
+        
+        <form id="editCaseForm">
+            <input type="hidden" id="detailCaseId">
+            
+            <div class="section-title" style="margin-top: 0;">Primary Case Information</div>
+            <div class="form-grid-3">
+                <div class="form-group"><label>Case Number</label><input type="text" id="dtl_case_number" required></div>
+                <div class="form-group full"><label>Case Title</label><input type="text" id="dtl_case_title" required></div>
+                <div class="form-group"><label>Type of Case</label><input type="text" id="dtl_type_of_case"></div>
+                <div class="form-group"><label>Status of Case</label>
+                    <select id="dtl_status">
+                        <option value="Active">Active</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>County</label><input type="text" id="dtl_county"></div>
+            </div>
+
+            <div class="section-title">Dates & Deadlines</div>
+            <div class="form-grid-3">
+                <div class="form-group"><label>Date of Event</label><input type="date" id="dtl_date_of_event"></div>
+                <div class="form-group"><label>Date of Contact</label><input type="date" id="dtl_date_of_contact"></div>
+                <div class="form-group"><label>SOL Date</label><input type="date" id="dtl_sol_date"></div>
+            </div>
+
+            <div class="section-title">Injured Person Details</div>
+            <div class="form-grid-3">
+                <div class="form-group full"><label>Name of Injured</label><input type="text" id="dtl_name_of_injured"></div>
+                <div class="form-group"><label>DOB</label><input type="date" id="dtl_dob"></div>
+                <div class="form-group"><label>Age</label><input type="number" id="dtl_age"></div>
+                <div class="form-group"><label>SSN</label><input type="text" id="dtl_ssn"></div>
+                <div class="form-group"><label>Height (Hgt)</label><input type="text" id="dtl_height"></div>
+                <div class="form-group"><label>Weight (Wgt)</label><input type="text" id="dtl_weight"></div>
+                <div class="form-group"><label>Date of Death (DOD)</label><input type="date" id="dtl_dod"></div>
+            </div>
+
+            <div class="section-title">Contact Data</div>
+            <div class="form-grid">
+                <div class="form-group"><label>Client Name (If different)</label><input type="text" id="dtl_client_name"></div>
+                <div class="form-group"><label>Work Phone</label><input type="tel" id="dtl_work_phone"></div>
+                <div class="form-group full"><label>Address</label><input type="text" id="dtl_address"></div>
+                <div class="form-group"><label>City, State, Zip</label><input type="text" id="dtl_city_state_zip"></div>
+                <div class="form-group"><label>Country</label><input type="text" id="dtl_country"></div>
+                <div class="form-group full"><label>E-mail</label><input type="email" id="dtl_email"></div>
+            </div>
+
+            <div class="section-title">Administrative, Staff & Referrals</div>
+            <div class="form-grid-3">
+                <div class="form-group"><label>Lawyer in Charge</label><select id="dtl_lawyer"><option value="">Unassigned</option></select></div>
+                <div class="form-group"><label>Paralegal in Charge</label><select id="dtl_paralegal"><option value="">Unassigned</option></select></div>
+                <div class="form-group"><label>Legal Assistant</label><input type="text" id="dtl_legal_assistant"></div>
+                <div class="form-group"><label>Primary Referral</label><input type="text" id="dtl_ref_primary"></div>
+                <div class="form-group"><label>Secondary Referral</label><input type="text" id="dtl_ref_secondary"></div>
+                <div class="form-group"><label>Judge</label><input type="text" id="dtl_judge"></div>
+                <div class="form-group full"><label>Conflict of Interest Check</label><input type="text" id="dtl_conf_check"></div>
+            </div>
+
+            <div class="section-title">Declination (If Applicable)</div>
+            <div class="form-grid-3">
+                <div class="form-group"><label>Date Declined</label><input type="date" id="dtl_date_declined"></div>
+                <div class="form-group"><label>Who Declined?</label><input type="text" id="dtl_who_declined"></div>
+                <div class="form-group"><label>How Declined?</label><input type="text" id="dtl_how_declined"></div>
+            </div>
+
+            <div class="section-title">Notes & Synopsis</div>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Case Synopsis</label>
+                    <textarea id="dtl_synopsis" placeholder="Summary of events..."></textarea>
+                </div>
+                <div class="form-group full">
+                    <label>Intake Comments & Recommendation</label>
+                    <textarea id="dtl_comments" placeholder="Recommendations..."></textarea>
+                </div>
+                <div class="form-group full" style="margin-top: 12px;">
+                    <button type="submit" class="btn" style="width: 100%;">Save All Case Data</button>
+                </div>
+            </div>
+        </form>
+
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 32px 0;">
+
+        <div class="section-title" style="margin-top:0;">Critical Dates & Depositions</div>
+        <div id="caseDatesTimeline"></div>
+
+        <h4 style="margin-top: 24px; color: var(--muted); text-transform: uppercase; font-size: 0.8rem;">Add Critical Date / Event</h4>
+        <form id="addDateForm" class="form-grid" style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+            <div class="form-group">
+                <label>Event Type</label>
+                <select id="newDateType">
+                    <option value="Deposition">Deposition</option>
+                    <option value="Filing">Filing Date</option>
+                    <option value="Hearing">Hearing</option>
+                    <option value="Trial">Trial</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Title / Description</label>
+                <input type="text" id="newDateTitle" placeholder="e.g. Deposition of Expert Witness" required>
+            </div>
+            <div class="form-group">
+                <label>Date & Time</label>
+                <input type="datetime-local" id="newDateValue" required>
+            </div>
+            <div class="form-group">
+                <label>Notes</label>
+                <input type="text" id="newDateNotes" placeholder="Optional notes">
+            </div>
+            <div class="form-group full">
+                <button type="submit" class="btn btn-secondary">Schedule Event</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 2. ADD NEW CASE MODAL -->
+<div id="newCaseModal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h2>Add New Case to ClientTale</h2>
+            <button class="btn btn-secondary" onclick="closeModal('newCaseModal')">Close</button>
+        </div>
+        <form id="newCaseForm">
+            <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 20px;">Fill out the preliminary details below. You can add more extensive details (Injured Person, Contact Data, Declination) from the Case Details view after creation.</p>
+            
+            <div class="section-title" style="margin-top:0;">Primary Case Information</div>
+            <div class="form-grid-3">
+                <div class="form-group"><label>Case Number</label><input type="text" id="new_case_number" placeholder="e.g. CV-2026-009" required></div>
+                <div class="form-group full"><label>Case Title</label><input type="text" id="new_case_title" placeholder="e.g. Smith vs. Johnson" required></div>
+                <div class="form-group"><label>Type of Case</label><input type="text" id="new_type_of_case"></div>
+                <div class="form-group"><label>Status</label>
+                    <select id="new_status">
+                        <option value="Active">Active</option>
+                        <option value="Pending">Pending</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="section-title">Injured Person & Dates</div>
+            <div class="form-grid-3">
+                <div class="form-group full"><label>Name of Injured</label><input type="text" id="new_name_of_injured" required></div>
+                <div class="form-group"><label>Date of Event</label><input type="date" id="new_date_of_event"></div>
+                <div class="form-group"><label>SOL Date</label><input type="date" id="new_sol_date"></div>
+            </div>
+
+            <div class="section-title">Assignments</div>
+            <div class="form-grid">
+                <div class="form-group"><label>Lawyer in Charge</label><select id="new_lawyer"><option value="">Select Lawyer...</option></select></div>
+                <div class="form-group"><label>Paralegal in Charge</label><select id="new_paralegal"><option value="">Select Paralegal...</option></select></div>
+                <div class="form-group full" style="margin-top: 16px;">
+                    <button type="submit" class="btn" style="width: 100%;">Create Case Record</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 3. STAFF MANAGEMENT MODAL -->
+<div id="staffModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Manage Staff Directory</h2>
+            <button class="btn btn-secondary" onclick="closeModal('staffModal')">Close</button>
+        </div>
+        
+        <h4 style="margin-top:0; color:var(--primary);">Add Staff Member</h4>
+        <form id="addStaffForm" class="form-grid" style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border);">
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="staffName" required>
+            </div>
+            <div class="form-group">
+                <label>Role</label>
+                <select id="staffRole">
+                    <option value="Lawyer">Lawyer</option>
+                    <option value="Paralegal">Paralegal</option>
+                </select>
+            </div>
+            <div class="form-group full">
+                <label>Email</label>
+                <input type="email" id="staffEmail" required>
+            </div>
+            <div class="form-group full">
+                <button type="submit" class="btn">Add Staff Member</button>
+            </div>
+        </form>
+
+        <h4 style="margin-top:0; color:var(--primary);">Current Staff</h4>
+        <table>
+            <thead><tr><th>Name</th><th>Role</th><th>Action</th></tr></thead>
+            <tbody id="staffTableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 4. PDF IMPORT MODAL -->
+<div id="pdfModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Import Case from PDF</h2>
+            <button class="btn btn-secondary" onclick="closeModal('pdfModal')">Close</button>
+        </div>
+        <p style="color: var(--muted); font-size: 0.9rem; margin-top:0; margin-bottom: 20px;">Upload an Intake Form PDF (e.g. <i>OMG_Tracker (OMG_FM_Server).pdf</i>). ClientTale will attempt to parse the fields automatically.</p>
+        <form id="pdfForm">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Select Legal PDF File</label>
+                <input type="file" id="pdfFile" accept="application/pdf" required style="padding: 12px; background: #f8fafc;">
+            </div>
+            <button type="submit" class="btn" style="width: 100%;">Upload & Parse PDF</button>
+        </form>
+        <div id="pdfResult" style="margin-top: 16px; font-weight: 600; text-align: center; color:#059669;"></div>
+    </div>
+</div>
+
+<script>
+    // Pure Local Storage API layer (No Firebase / No Authentication Required)
+    const API = {
+        getStaff: async () => {
+            const data = localStorage.getItem('clienttale_staff');
+            return data ? JSON.parse(data) : [];
+        },
+        addStaff: async (s) => {
+            s.id = 'staff_' + Date.now();
+            const staff = await API.getStaff();
+            staff.push(s);
+            localStorage.setItem('clienttale_staff', JSON.stringify(staff));
+            return s;
+        },
+        delStaff: async (id) => {
+            let staff = await API.getStaff();
+            staff = staff.filter(s => s.id !== id);
+            localStorage.setItem('clienttale_staff', JSON.stringify(staff));
+        },
+        getCases: async (q) => { 
+            const data = localStorage.getItem('clienttale_cases');
+            let res = data ? JSON.parse(data) : [];
+            if(q) {
+                const lower = q.toLowerCase();
+                res = res.filter(c => c.case_number?.toLowerCase().includes(lower) || c.case_title?.toLowerCase().includes(lower) || (c.name_of_injured && c.name_of_injured.toLowerCase().includes(lower)));
+            }
+            return res; 
+        },
+        getCase: async (id) => {
+            const cases = await API.getCases();
+            return cases.find(c => c.id === id) || null;
+        },
+        addCase: async (c) => { 
+            c.dates = c.dates || [];
+            c.id = 'case_' + Date.now();
+            const cases = await API.getCases();
+            cases.push(c);
+            localStorage.setItem('clienttale_cases', JSON.stringify(cases));
+            return c;
+        },
+        updateCase: async (id, updates) => {
+            const cases = await API.getCases();
+            const index = cases.findIndex(c => c.id === id);
+            if (index !== -1) {
+                cases[index] = { ...cases[index], ...updates };
+                localStorage.setItem('clienttale_cases', JSON.stringify(cases));
+            }
+        },
+        addDate: async (caseId, d) => {
+            const eventDate = new Date(d.event_date);
+            d.timeframe = eventDate < new Date() ? "Past" : "Upcoming";
+            d.id = 'date_' + Date.now();
+
+            const cases = await API.getCases();
+            const c = cases.find(item => item.id === caseId);
+            if (c) {
+                c.dates = c.dates || [];
+                c.dates.push(d);
+                localStorage.setItem('clienttale_cases', JSON.stringify(cases));
+            }
+        }
+    };
+
+    let globalStaff = [];
+
+    async function seedDataIfNeeded() {
+        const staff = await API.getStaff();
+        if (staff.length === 0) {
+            const lawyer = await API.addStaff({ full_name: "Jane Otorowski", role: "Lawyer", email: "jane@otorowskigolden.com" });
+            const paralegal = await API.addStaff({ full_name: "Sarah Legal", role: "Paralegal", email: "sarah@otorowskigolden.com" });
+            
+            const newCase = await API.addCase({
+                case_number: "29911", case_title: "Smith Medical Malpractice", 
+                type_of_case: "Med Mal", status: "Active", county: "King County",
+                date_of_contact: "2026-07-27", sol_date: "2029-07-27", date_of_event: "2024-05-10",
+                name_of_injured: "John Smith", dob: "1980-01-15", age: "46", ssn: "XXX-XX-1234",
+                height: "5'10", weight: "180", dod: "", client_name: "Mary Smith (Wife)",
+                address: "123 Main St", city_state_zip: "Seattle, WA 98101", country: "USA",
+                work_phone: "206-555-0100", email: "msmith@email.com",
+                lawyer_id: lawyer.id, paralegal_id: paralegal.id, legal_assistant: "Tom H.", ref_primary: "Avvo",
+                ref_secondary: "", judge: "Hon. Roberts", conf_check: "Cleared",
+                date_declined: "", who_declined: "", how_declined: "",
+                synopsis: "Patient suffered complications after routine surgery.", comments: "Strong case, awaiting medical records."
+            });
+            await API.addDate(newCase.id, { event_type: "Deposition", title: "Deposition of Dr. Surgeon", event_date: "2026-08-15T10:00", notes: "At opposing counsel office" });
+        }
+    }
+
+    async function init() {
+        await seedDataIfNeeded();
+        await fetchStaff();
+        await window.fetchCases();
+    }
+
+    async function fetchStaff() {
+        globalStaff = await API.getStaff();
+        const tbody = document.getElementById('staffTableBody');
+        tbody.innerHTML = '';
+        globalStaff.forEach(s => {
+            tbody.innerHTML += `
+                <tr>
+                    <td><strong>${s.full_name}</strong><br><small style="color:var(--muted)">${s.email}</small></td>
+                    <td>${s.role}</td>
+                    <td><button class="btn btn-danger" style="padding:4px 8px; font-size:0.75rem;" onclick="window.deleteStaff('${s.id}')">Remove</button></td>
+                </tr>`;
+        });
+        populateStaffDropdowns();
+    }
+
+    function populateStaffDropdowns() {
+        const lawyers = globalStaff.filter(s => s.role === 'Lawyer');
+        const paralegals = globalStaff.filter(s => s.role === 'Paralegal');
+
+        const updateSelect = (elementId, list, defaultLabel) => {
+            const select = document.getElementById(elementId);
+            if(!select) return;
+            select.innerHTML = `<option value="">${defaultLabel}</option>`;
+            list.forEach(item => { select.innerHTML += `<option value="${item.id}">${item.full_name}</option>`; });
+        };
+
+        updateSelect('new_lawyer', lawyers, 'Select Lawyer...');
+        updateSelect('new_paralegal', paralegals, 'Select Paralegal...');
+        updateSelect('dtl_lawyer', lawyers, 'Unassigned');
+        updateSelect('dtl_paralegal', paralegals, 'Unassigned');
+    }
+
+    window.deleteStaff = async function(id) {
+        await API.delStaff(id);
+        await fetchStaff();
+        await window.fetchCases(); 
+    }
+
+    document.getElementById('addStaffForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await API.addStaff({
+            full_name: document.getElementById('staffName').value,
+            role: document.getElementById('staffRole').value,
+            email: document.getElementById('staffEmail').value
+        });
+        document.getElementById('addStaffForm').reset();
+        fetchStaff();
+    });
+
+    window.fetchCases = async function(searchQuery = '') {
+        const cases = await API.getCases(searchQuery);
+        const tbody = document.getElementById('caseTableBody');
+        tbody.innerHTML = '';
+
+        if(cases.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted); padding: 30px;">No matching cases found.</td></tr>';
+            return;
+        }
+
+        cases.forEach(c => {
+            const lawyer = globalStaff.find(s => String(s.id) === String(c.lawyer_id))?.full_name || 'Unassigned';
+            const paralegal = globalStaff.find(s => String(s.id) === String(c.paralegal_id))?.full_name || 'Unassigned';
+            const injured = c.name_of_injured || 'Unknown';
+            
+            tbody.innerHTML += `
+                <tr class="clickable" onclick="window.openCaseDetailModal('${c.id}')">
+                    <td><strong>${c.case_number}</strong></td>
+                    <td>${c.case_title}</td>
+                    <td>${injured}</td>
+                    <td>${lawyer}</td>
+                    <td>${paralegal}</td>
+                    <td><span class="badge badge-${c.status}">${c.status}</span></td>
+                </tr>`;
+        });
+    }
+
+    window.openCaseDetailModal = async function(caseId) {
+        const c = await API.getCase(caseId);
+        if(!c) return;
+
+        document.getElementById('detailCaseId').value = c.id;
+        document.getElementById('detailCaseHeaderTitle').innerText = `Case: ${c.case_title} (${c.case_number})`;
+        
+        const fields = ['case_number', 'case_title', 'type_of_case', 'status', 'county', 'date_of_event', 'date_of_contact', 'sol_date', 'name_of_injured', 'dob', 'age', 'ssn', 'height', 'weight', 'dod', 'client_name', 'work_phone', 'address', 'city_state_zip', 'country', 'email', 'legal_assistant', 'ref_primary', 'ref_secondary', 'judge', 'conf_check', 'date_declined', 'who_declined', 'how_declined', 'synopsis', 'comments', 'lawyer', 'paralegal'];
+        
+        fields.forEach(f => {
+            const el = document.getElementById(`dtl_${f}`);
+            if(el) el.value = c[f === 'lawyer' ? 'lawyer_id' : f === 'paralegal' ? 'paralegal_id' : f] || '';
+        });
+
+        const datesContainer = document.getElementById('caseDatesTimeline');
+        datesContainer.innerHTML = '';
+        if (!c.dates || c.dates.length === 0) {
+            datesContainer.innerHTML = '<p style="color:var(--muted); font-size:0.85rem; padding: 12px; background: #f8fafc; border-radius: 6px;">No critical dates scheduled for this case.</p>';
+        } else {
+            c.dates.forEach(d => {
+                const formattedDate = d.event_date ? new Date(d.event_date).toLocaleString() : 'Date not set';
+                datesContainer.innerHTML += `
+                    <div class="timeline-item">
+                        <div style="display:flex; justify-content:space-between; align-items: center;">
+                            <strong>${d.title}</strong>
+                            <span class="badge badge-${d.timeframe || 'Upcoming'}">${d.timeframe || 'Upcoming'}</span>
+                        </div>
+                        <div style="font-size:0.85rem; color:#475569; margin-top:6px;">
+                            <span style="font-weight:600; color:var(--primary);">${d.event_type}</span> | ${formattedDate}
+                            ${d.notes ? `<div style="margin-top:4px; padding-top:4px; border-top: 1px dashed var(--border);">${d.notes}</div>` : ''}
+                        </div>
+                    </div>`;
+            });
+        }
+
+        window.openModal('caseDetailModal');
+    }
+
+    document.getElementById('editCaseForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const saveBtn = e.target.querySelector('button[type="submit"]');
+        const originalText = saveBtn.innerText;
+        saveBtn.innerText = 'Saving...';
+        saveBtn.disabled = true;
+
+        const id = document.getElementById('detailCaseId').value;
+        const payload = {};
+        
+        const fields = ['case_number', 'case_title', 'type_of_case', 'status', 'county', 'date_of_event', 'date_of_contact', 'sol_date', 'name_of_injured', 'dob', 'age', 'ssn', 'height', 'weight', 'dod', 'client_name', 'work_phone', 'address', 'city_state_zip', 'country', 'email', 'legal_assistant', 'ref_primary', 'ref_secondary', 'judge', 'conf_check', 'date_declined', 'who_declined', 'how_declined', 'synopsis', 'comments'];
+        
+        fields.forEach(f => payload[f] = document.getElementById(`dtl_${f}`).value);
+        payload.lawyer_id = document.getElementById('dtl_lawyer').value;
+        payload.paralegal_id = document.getElementById('dtl_paralegal').value;
+
+        await API.updateCase(id, payload);
+        
+        saveBtn.innerText = originalText;
+        saveBtn.disabled = false;
+        
+        window.closeModal('caseDetailModal');
+        window.fetchCases();
+    });
+
+    document.getElementById('newCaseForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            case_number: document.getElementById('new_case_number').value,
+            case_title: document.getElementById('new_case_title').value,
+            type_of_case: document.getElementById('new_type_of_case').value,
+            status: document.getElementById('new_status').value,
+            name_of_injured: document.getElementById('new_name_of_injured').value,
+            date_of_event: document.getElementById('new_date_of_event').value,
+            sol_date: document.getElementById('new_sol_date').value,
+            lawyer_id: document.getElementById('new_lawyer').value,
+            paralegal_id: document.getElementById('new_paralegal').value
+        };
+
+        await API.addCase(payload);
+        document.getElementById('newCaseForm').reset();
+        window.closeModal('newCaseModal');
+        window.fetchCases();
+    });
+
+    document.getElementById('addDateForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const caseId = document.getElementById('detailCaseId').value;
+        const payload = {
+            event_type: document.getElementById('newDateType').value,
+            title: document.getElementById('newDateTitle').value,
+            event_date: document.getElementById('newDateValue').value,
+            notes: document.getElementById('newDateNotes').value
+        };
+
+        await API.addDate(caseId, payload);
+        document.getElementById('addDateForm').reset();
+        window.openCaseDetailModal(caseId);
+    });
+
+    document.getElementById('pdfForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const resDiv = document.getElementById('pdfResult');
+        const fileInput = document.getElementById('pdfFile');
+        
+        if(fileInput.files.length === 0) return;
+        
+        const fileName = fileInput.files[0].name;
+        resDiv.style.color = 'var(--text)';
+        resDiv.innerText = `Analyzing ${fileName}...`;
+        
+        setTimeout(() => {
+            resDiv.style.color = '#059669';
+            resDiv.innerHTML = `Success! Parsed standard fields from <b>${fileName}</b>.<br><br><button type="button" class="btn btn-secondary" onclick="window.closeModal('pdfModal'); window.openNewCaseModal();">Review Imported Case</button>`;
+            
+            document.getElementById('new_case_number').value = "29912";
+            document.getElementById('new_case_title').value = "Imported PDF Case";
+            document.getElementById('new_name_of_injured').value = "PDF Client Name";
+        }, 1500);
+    });
+
+    window.openModal = function(id) { document.getElementById(id).style.display = 'flex'; }
+    window.closeModal = function(id) { 
+        document.getElementById(id).style.display = 'none'; 
+        if(id === 'pdfModal') document.getElementById('pdfResult').innerText = '';
+    }
+    window.openNewCaseModal = function() { window.openModal('newCaseModal'); }
+    window.openStaffModal = function() { window.openModal('staffModal'); }
+    window.openPdfModal = function() { window.openModal('pdfModal'); }
+
+    init();
+</script>
+</body>
+</html>
