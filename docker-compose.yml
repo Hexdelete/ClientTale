@@ -1,41 +1,27 @@
 services:
   db:
     image: mysql:8.0
+    container_name: clienttale_db
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: legal_db
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: clienttale
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - mysql_data:/var/lib/mysql  # This persists the data outside the container lifecycle
 
   backend:
     build: .
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - .:/app
+    container_name: clienttale_api
     ports:
       - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=password
+      - DB_NAME=clienttale
     depends_on:
       - db
-    environment:
-      - MYSQL_HOST=db
-      - MYSQL_USER=user
-      - MYSQL_PASSWORD=password
-      - MYSQL_DATABASE=legal_db
-
-  nginx:
-    image: nginx:latest
-    ports:
-      - "80:80"
-    volumes:
-      - ./index.html:/usr/share/nginx/html/index.html
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-    depends_on:
-      - backend
 
 volumes:
   mysql_data:
