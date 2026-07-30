@@ -93,10 +93,7 @@
         <div class="modal-header">
             <h2 id="detailCaseHeaderTitle">Case Data</h2>
             <!-- Example inside a table row or case card loop -->
-            <button 
-                onclick="deleteCase(${caseItem.id}, '${caseItem.case_title || caseItem.case_number}')" 
-                class="btn-delete"
-                style="color: #dc3545; border: 1px solid #dc3545; background: transparent; padding: 4px 8px; border-radius: 4px; cursor: pointer;">
+            <button onclick="deleteCase(${caseItem.id})" class="btn-delete">
                 Delete
             </button>
             <button class="btn btn-secondary" onclick="closeModal('caseDetailModal')">Close</button>
@@ -269,12 +266,8 @@
         populateStaffDropdowns();
     }
 
-    async function deleteCase(caseId, caseTitle) {
-        const titleDisplay = caseTitle ? `"${caseTitle}"` : 'this case';
-        
-        // Confirmation dialog
-        const confirmed = window.confirm(`Are you sure you want to delete ${titleDisplay}? This action cannot be undone.`);
-        if (!confirmed) {
+    async function deleteCase(caseId) {
+        if (!confirm(`Are you sure you want to delete case #${caseId}? This action cannot be undone.`)) {
             return;
         }
     
@@ -284,19 +277,21 @@
             });
     
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to delete case');
+                const err = await response.json();
+                throw new Error(err.detail || 'Failed to delete case');
             }
     
-            // Refresh the cases list or view after deletion
+            // Refresh UI list
             if (typeof fetchCases === 'function') {
                 fetchCases();
+            } else if (typeof init === 'function') {
+                init();
             } else {
                 window.location.reload();
             }
-        } catch (error) {
-            console.error('Error deleting case:', error);
-            alert(`Error: ${error.message}`);
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert(`Could not delete case: ${err.message}`);
         }
     }
 

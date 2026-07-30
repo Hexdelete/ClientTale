@@ -1,7 +1,7 @@
-from datetime import datetime
 import io
 import os
 import re
+from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -192,13 +192,23 @@ def add_staff(staff: StaffModel):
     return {"id": staff_id, **staff.dict()}
 
 
-@app.delete("/api/staff/{staff_id}")
-def delete_staff(staff_id: int):
-    conn = get_db_connection()
+@app.delete("/api/cases/{case_id}")
+async def delete_case(case_id: int):
+  conn = get_db_connection()
+  try:
     with conn.cursor() as cursor:
-        cursor.execute("DELETE FROM staff WHERE id = %s", (staff_id,))
+      cursor.execute("SELECT id FROM cases WHERE id = %s", (case_id,))
+      if not cursor.fetchone():
+        raise HTTPException(status_code=404, detail="Case not found")
+
+      cursor.execute("DELETE FROM cases WHERE id = %s", (case_id,))
+      conn.commit()
+    return {"status": "success", "message": f"Case {case_id} deleted"}
+  except Exception as e:
+    conn.rollback()
+    raise HTTPException(status_code=500, detail=str(e))
+  finally:
     conn.close()
-    return {"status": "success"}
 
 
 @app.get("/api/cases")
@@ -313,29 +323,84 @@ def delete_case(case_id: int):
   finally:
     conn.close()
 
+FORM_KEYWORDS = [
+    "Injured Person",
+    "Name of Injured",
+    "DOB",
+    "DOD",
+    "SSN",
+    "Age",
+    "Hgt",
+    "Wgt",
+    "Case Number",
+    "Type of Case",
+    "Date of Event",
+    "Conf of Int Check",
+    "Status of Case",
+    "SOL Date",
+    "Date of Contact",
+    "County",
+    "Referral Source",
+    "Date Declined",
+    "Who Declined",
+    "How Declined",
+    "Primary",
+    "Secondary",
+    "Legal Assistant",
+    "Judge",
+    "Client Name",
+    "Address",
+    "City, State, Zip",
+    "Country",
+    "Work phone",
+    "E-mail",
+    "Email",
+    "Contact Data",
+    "Assignments & Referrals",
+    "OTOROWSKI",
+    "INTAKE COMMENTS",
+    "CASE SYNOPIS",
+    "Page",
+]
+
+
 @app.post("/api/import-pdf")
 async def import_pdf(file: UploadFile = File(...)):
   contents = await file.read()
   reader = PdfReader(io.BytesIO(contents))
+
+  # Extract text with layout mode enabled if supported by pypdf
   extracted_text = ""
   for page in reader.pages:
-    extracted_text += (page.extract_text() or "") + "\n"
+    try:
+      extracted_text += page.extract_text(extraction_mode="layout") + "\n"
+    except Exception:
+      extracted_text += (page.extract_text() or "") + "\n"
 
-  def extract_field(patterns: List[str]) -> Optional[str]:
-    for pat in patterns:
-      match = re.search(pat, extracted_text, re.IGNORECASE)
-      if match:
-        # Return the first non-empty capture group
-        for group in match.groups():
-          if group and group.strip():
-            return group.strip().replace(" |", "").strip()
+  def extract_field_value(label: str) -> Optional[str]:
+    # Build stop-pattern using all other keywords
+    other_keywords = [
+        re.escape(k) for k in FORM_KEYWORDS if k.lower() != label.lower()
+    ]
+    stop_pattern = "|".join(other_keywords)
+
+    pattern = rf"{re.escape(label)}\s*[:\|]?\s*(.*?)(?=(?:{stop_pattern})|[\r\n]{{2,}}|$)"
+    match = re.search(pattern, extracted_text, re.IGNORECASE | re.DOTALL)
+    if match:
+      val = match.group(1).strip()
+      # Clean up leading pipes or line breaks
+      val = re.sub(r"^[\|\:\s]+", "", val).strip()
+      # Take only first line if multi-line noise exists
+      lines = [line.strip() for line in val.splitlines() if line.strip()]
+      return lines[0] if lines else None
     return None
 
   def parse_date(date_str: Optional[str]) -> Optional[str]:
     if not date_str:
       return None
-    # Clean up any trailing labels or artifacts
-    date_str = date_str.split()[0].strip()
+    match = re.search(r"\b(\d{1,2}/\d{1,2}/\d{4})\b", date_str)
+    if match:
+      date_str = match.group(1)
     for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y"):
       try:
         return datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
@@ -343,149 +408,77 @@ async def import_pdf(file: UploadFile = File(...)):
         continue
     return None
 
-  # Specific regex patterns mapping to the FileMaker export layout[cite: 3]
-  c_num = extract_field([
-      r"Case Number\s*([0-9]+)",
-      r"Case Number[\r\n]+\s*([0-9]+)",
-  ]) or "IMP-" + datetime.now().strftime("%Y%m%d%H%M%S")
+  # Dedicated pattern extractors for distinct data types
+  email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", extracted_text)
+  extracted_email = email_match.group(0) if email_match else None
 
-  # Name of injured typically spans multi-lines: "Name of Injured \n First \n Last"[cite: 3]
-  injured_first = extract_field([
-      r"Name of Injured\s*[\r\n]+\s*([A-Za-z]+)",
-  ])
-  injured_last = extract_field([
-      r"Injured Person:\s*([A-Za-z]+)",
-  ])
-  name_inj = (
-      f"{injured_first} {injured_last}".strip()
-      if injured_first and injured_last
-      else (injured_first or injured_last)
+  phone_match = re.search(r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", extracted_text)
+  extracted_phone = phone_match.group(0) if phone_match else None
+
+  # Case & Person Identifiers
+  c_num = extract_field_value("Case Number") or "IMP-" + datetime.now().strftime(
+      "%Y%m%d%H%M%S"
   )
 
-  # Client Name spans multi-lines: "Client Name \n Jane \n Doe"[cite: 3]
-  client_first = extract_field([
-      r"Client Name\s*[\r\n]+\s*([A-Za-z]+)",
-  ])
-  client_last = extract_field([
-      r"Client Name\s*[\r\n]+\s*[A-Za-z]+[\r\n]+\s*([A-Za-z]+)",
-  ])
-  client_nm = (
-      f"{client_first} {client_last}".strip()
-      if client_first and client_last
-      else (client_first or name_inj)
-  )
+  injured_first = extract_field_value("Name of Injured")
+  injured_last = extract_field_value("Injured Person")
+  if injured_first and injured_last and injured_last in injured_first:
+    name_inj = injured_first
+  else:
+    name_inj = (
+        f"{injured_first} {injured_last}".strip()
+        if (injured_first and injured_last)
+        else (injured_first or injured_last)
+    )
 
-  # Address fields span multi-lines under "Address"[cite: 3]
-  address_match = re.search(
-      r"Address\s*[\r\n]+\s*([^\r\n]+)[\r\n]+\s*([^\r\n]+)[\r\n]+\s*([^\r\n]+)",
-      extracted_text,
+  client_val = extract_field_value("Client Name") or name_inj
+
+  # Address line parsing
+  addr_raw = extract_field_value("Address")
+  city_zip_match = re.search(
+      r"([A-Za-z\s]+,?\s+[A-Z]{2}\s+\d{5})", extracted_text
   )
-  street_address = address_match.group(1).strip() if address_match else None
-  apt_suite = address_match.group(2).strip() if address_match else None
-  city_val = address_match.group(3).strip() if address_match else None
-  full_address = (
-      f"{street_address}, {apt_suite}" if apt_suite else street_address
+  city_state_zip = (
+      city_zip_match.group(1) if city_zip_match else extract_field_value("City, State, Zip")
   )
 
   case_data = {
       "case_number": c_num,
-      "case_title": f"Case: {client_nm or c_num}",
-      "type_of_case": extract_field([
-          r"Type of Case\s*\|\s*([^\r\n]+)",
-          r"Type of Case\s*([^\r\n]+)",
-      ]),
-      "status": extract_field([
-          r"Status of Case\s*([^\r\n]+)",
-      ])
-      or "Active",
-      "county": extract_field([
-          r"County\s*([A-Za-z]+)",
-      ]),
-      "date_of_event": parse_date(
-          extract_field([
-              r"Date of Event\s*\|\s*([0-9/]+)",
-              r"Date of Event\s*([0-9/]+)",
-          ])
-      ),
-      "date_of_contact": parse_date(
-          extract_field([
-              r"Date of Contact\s*([0-9/]+)",
-          ])
-      ),
-      "sol_date": parse_date(
-          extract_field([
-              r"SOL Date\s*([0-9/]+)",
-          ])
-      ),
+      "case_title": f"Case: {client_val or c_num}",
+      "type_of_case": extract_field_value("Type of Case"),
+      "status": extract_field_value("Status of Case") or "Active",
+      "county": extract_field_value("County"),
+      "date_of_event": parse_date(extract_field_value("Date of Event")),
+      "date_of_contact": parse_date(extract_field_value("Date of Contact")),
+      "sol_date": parse_date(extract_field_value("SOL Date")),
       "name_of_injured": name_inj,
-      "dob": parse_date(
-          extract_field([
-              r"DOB\s*([0-9/]+)",
-          ])
-      ),
+      "dob": parse_date(extract_field_value("DOB")),
       "age": (
-          int(age_str)
+          int(m.group(1))
           if (
-              age_str := extract_field([
-                  r"Age\s*([0-9]+)",
-              ])
+              val := extract_field_value("Age")
           )
-          and age_str.isdigit()
+          and (m := re.search(r"\d+", val))
           else None
       ),
-      "ssn": extract_field([
-          r"SSN\s*([0-9\-]+)",
-      ]),
-      "height": extract_field([
-          r"Hgt\s*([^\r\n]+)",
-      ]),
-      "weight": extract_field([
-          r"Wgt\s*([0-9]+)",
-      ]),
-      "dod": parse_date(
-          extract_field([
-              r"DOD\s*([0-9/]+)",
-          ])
-      ),
-      "client_name": client_nm,
-      "work_phone": extract_field([
-          r"Work phone\s*([0-9\-\(\)]+)",
-      ]),
-      "address": full_address,
-      "city_state_zip": city_val,
-      "country": None,
-      "email": extract_field([
-          r"E-mail\s*([^\r\n\s]+)",
-      ]),
-      "legal_assistant": extract_field([
-          r"Legal Assistant\s*([A-Za-z\s]+)",
-      ]),
-      "ref_primary": extract_field([
-          r"Primary\s*([A-Za-z\s]+)",
-      ]),
-      "ref_secondary": extract_field([
-          r"Secondary\s*([A-Za-z\s]+)",
-      ]),
-      "judge": extract_field([
-          r"Judge\s*([A-Za-z\s]+)",
-      ]),
-      "conf_check": parse_date(
-          extract_field([
-              r"Conf of Int Check\s*\|\s*([0-9/]+)",
-              r"Conf of Int Check\s*([0-9/]+)",
-          ])
-      ),
-      "date_declined": parse_date(
-          extract_field([
-              r"Date Declined\s*([0-9/]+)",
-          ])
-      ),
-      "who_declined": extract_field([
-          r"Who Declined\?\s*([A-Za-z\s]+)",
-      ]),
-      "how_declined": extract_field([
-          r"How Declined\?\s*([A-Za-z\s]+)",
-      ]),
+      "ssn": extract_field_value("SSN"),
+      "height": extract_field_value("Hgt"),
+      "weight": extract_field_value("Wgt"),
+      "dod": parse_date(extract_field_value("DOD")),
+      "client_name": client_val,
+      "work_phone": extracted_phone or extract_field_value("Work phone"),
+      "address": addr_raw,
+      "city_state_zip": city_state_zip,
+      "country": extract_field_value("Country"),
+      "email": extracted_email or extract_field_value("E-mail"),
+      "legal_assistant": extract_field_value("Legal Assistant"),
+      "ref_primary": extract_field_value("Primary"),
+      "ref_secondary": extract_field_value("Secondary"),
+      "judge": extract_field_value("Judge"),
+      "conf_check": parse_date(extract_field_value("Conf of Int Check")),
+      "date_declined": parse_date(extract_field_value("Date Declined")),
+      "who_declined": extract_field_value("Who Declined"),
+      "how_declined": extract_field_value("How Declined"),
       "synopsis": extracted_text,
   }
 
@@ -499,5 +492,7 @@ async def import_pdf(file: UploadFile = File(...)):
     query = f"INSERT INTO cases ({columns}) VALUES ({placeholders})"
     cursor.execute(query, values)
     case_id = cursor.lastrowid
+  conn.commit()
   conn.close()
+
   return {"status": "success", "case_id": case_id}
