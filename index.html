@@ -93,7 +93,7 @@
         <div class="modal-header">
             <h2 id="detailCaseHeaderTitle">Case Data</h2>
             <!-- Example inside a table row or case card loop -->
-            <button onclick="deleteCase(${caseItem.id})" class="btn-delete">
+            <button type="button" onclick="deleteCase(${caseItem.id})" class="btn-delete">
                 Delete
             </button>
             <button class="btn btn-secondary" onclick="closeModal('caseDetailModal')">Close</button>
@@ -308,14 +308,20 @@
         updateSelect('dtl_paralegal', paralegals);
     }
 
-    window.deleteStaff = async (id) => { await API.delStaff(id); await fetchStaff(); };
-
-    document.getElementById('addStaffForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await API.addStaff({ full_name: document.getElementById('staffName').value, role: document.getElementById('staffRole').value, email: document.getElementById('staffEmail').value });
-        document.getElementById('addStaffForm').reset();
-        fetchStaff();
-    });
+    window.deleteCase = async function(caseId) {
+        if (!confirm(`Are you sure you want to delete case #${caseId}?`)) return;
+    
+        try {
+            const res = await fetch(`${API_BASE}/cases/${caseId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(await res.text());
+    
+            // Refresh list
+            fetchCases(); 
+        } catch (err) {
+            console.error(err);
+            alert(`Delete failed: ${err.message}`);
+        }
+    };
 
     window.fetchCases = async function(q = '') {
         const cases = await API.getCases(q);
