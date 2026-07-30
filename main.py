@@ -307,19 +307,23 @@ def add_date(case_id: int, date_item: DateModel):
     return {"id": date_id, "timeframe": timeframe, **date_item.dict()}
 
 @app.delete("/api/cases/{case_id}")
-def delete_case(case_id: int):
+async def delete_case(case_id: int):
   conn = get_db_connection()
   try:
     with conn.cursor() as cursor:
-      # Check if case exists first
+      # Check existence
       cursor.execute("SELECT id FROM cases WHERE id = %s", (case_id,))
-      case = cursor.fetchone()
-      if not case:
+      if not cursor.fetchone():
         raise HTTPException(status_code=404, detail="Case not found")
 
+      # Perform deletion
       cursor.execute("DELETE FROM cases WHERE id = %s", (case_id,))
       conn.commit()
+
     return {"status": "success", "message": f"Case {case_id} deleted"}
+  except Exception as e:
+    conn.rollback()
+    raise HTTPException(status_code=500, detail=str(e))
   finally:
     conn.close()
 

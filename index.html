@@ -92,8 +92,11 @@
     <div class="modal-content">
         <div class="modal-header">
             <h2 id="detailCaseHeaderTitle">Case Data</h2>
-            <!-- Example inside a table row or case card loop -->
-            <button type="button" onclick="deleteCase(${caseItem.id})" class="btn-delete">
+            <button 
+                type="button" 
+                onclick="deleteCase(${caseItem.id}, event)" 
+                class="btn-delete"
+                style="color: #dc3545; border: 1px solid #dc3545; background: transparent; padding: 4px 8px; border-radius: 4px; cursor: pointer;">
                 Delete
             </button>
             <button class="btn btn-secondary" onclick="closeModal('caseDetailModal')">Close</button>
@@ -308,18 +311,39 @@
         updateSelect('dtl_paralegal', paralegals);
     }
 
-    window.deleteCase = async function(caseId) {
-        if (!confirm(`Are you sure you want to delete case #${caseId}?`)) return;
+    window.deleteCase = async function(caseId, event) {
+        // Stop the click event from triggering parent row/card click handlers
+        if (event) {
+            event.stopPropagation();
+        }
+    
+        const confirmed = window.confirm(`Are you sure you want to delete case #${caseId}? This action cannot be undone.`);
+        if (!confirmed) return;
     
         try {
-            const res = await fetch(`${API_BASE}/cases/${caseId}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error(await res.text());
+            const response = await fetch(`${API_BASE}/cases/${caseId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
     
-            // Refresh list
-            fetchCases(); 
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.detail || `Server returned status ${response.status}`);
+            }
+    
+            // Refresh the UI list
+            if (typeof fetchCases === 'function') {
+                await fetchCases();
+            } else if (typeof init === 'function') {
+                await init();
+            } else {
+                window.location.reload();
+            }
         } catch (err) {
-            console.error(err);
-            alert(`Delete failed: ${err.message}`);
+            console.error('Delete error:', err);
+            alert(`Failed to delete case: ${err.message}`);
         }
     };
 
