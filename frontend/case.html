@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Case File · ClientTale</title>
+  <script>document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "light");</script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">ClientTale</div>
+    <div class="spacer"></div>
+    <nav>
+      <a href="index.html">Dashboard</a>
+      <a href="staff.html">Manage Staff</a>
+      <a href="case.html">New Case</a>
+      <button type="button" id="theme-toggle" class="secondary" style="margin-left:1.25rem;">Dark Mode</button>
+      <span id="current-user" class="muted" style="margin-left:1.25rem;"></span>
+      <a href="#" id="logout-btn" style="margin-left:1.25rem;">Sign Out</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 id="page-title">New Case</h2>
+        <div>
+          <button type="button" id="copy-emails-btn" class="secondary">E-Service List</button>
+          <span id="copy-emails-status" class="muted"></span>
+        </div>
+      </div>
+      <div id="form-error" class="error-msg hidden"></div>
+
+      <div id="pdf-import-block" style="margin-bottom: 1rem;">
+        <label for="pdf-file" class="btn secondary" style="display:inline-block;">Import From PDF</label>
+        <input type="file" id="pdf-file" accept="application/pdf" class="hidden">
+        <span id="pdf-status" class="muted"></span>
+      </div>
+
+      <div id="import-review" class="import-review hidden">
+        <strong>Review imported data before saving.</strong>
+        <p class="muted">Staff names below were extracted as free text — pick the matching dropdown entries.</p>
+        <div id="import-staff-fields"></div>
+        <button type="button" id="apply-import" class="secondary">Apply to Form</button>
+        <button type="button" id="dismiss-import" class="secondary">Dismiss</button>
+      </div>
+
+      <div class="tabs">
+        <button type="button" class="tab-btn active" data-tab="tab-person">Injured Person &amp; Contact</button>
+        <button type="button" class="tab-btn" data-tab="tab-case">Case Info</button>
+        <button type="button" class="tab-btn" data-tab="tab-narrative">Narrative</button>
+        <button type="button" class="tab-btn" data-tab="tab-opposing">Opposing Counsel</button>
+        <button type="button" class="tab-btn" data-tab="tab-events">Events</button>
+      </div>
+
+      <form id="case-form">
+        <div class="tab-panel active" id="tab-person">
+          <h3>Injured Person</h3>
+          <div class="form-grid">
+            <div class="field"><label for="injured_first_name">First Name</label><input type="text" id="injured_first_name"></div>
+            <div class="field"><label for="injured_last_name">Last Name</label><input type="text" id="injured_last_name"></div>
+            <div class="field"><label for="dob">DOB</label><input type="date" id="dob"></div>
+
+            <div class="field"><label for="dod">DOD</label><input type="date" id="dod"></div>
+            <div class="field"><label for="ssn">SSN</label><input type="text" id="ssn"></div>
+            <div class="field"><label for="age">Age</label><input type="text" id="age"></div>
+
+            <div class="field"><label for="height">Height</label><input type="text" id="height"></div>
+            <div class="field"><label for="weight">Weight</label><input type="text" id="weight"></div>
+          </div>
+
+          <h3>Contact Data</h3>
+          <div class="form-grid">
+            <div class="field"><label for="client_first_name">Client First Name</label><input type="text" id="client_first_name"></div>
+            <div class="field"><label for="client_last_name">Client Last Name</label><input type="text" id="client_last_name"></div>
+          </div>
+
+          <div class="form-grid">
+            <div class="field"><label for="work_phone">Work Phone</label><input type="text" id="work_phone"></div>
+            <div class="field span-2"><label for="email">E-mail</label><input type="email" id="email"></div>
+          </div>
+
+          <div class="form-grid">
+            <div class="field span-2"><label for="address_line1">Address</label><input type="text" id="address_line1"></div>
+            <div class="field"><label for="address_line2">Address Line 2</label><input type="text" id="address_line2"></div>
+
+            <div class="field"><label for="city">City</label><input type="text" id="city"></div>
+            <div class="field"><label for="state">State</label><input type="text" id="state"></div>
+            <div class="field"><label for="zip">Zip</label><input type="text" id="zip"></div>
+
+            <div class="field"><label for="country">Country</label><input type="text" id="country"></div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-case">
+          <h3>Case Info</h3>
+          <div class="form-grid">
+            <div class="field"><label for="case_number">Case Number</label><input type="text" id="case_number" required></div>
+            <div class="field"><label for="status">Status of Case</label>
+              <select id="status">
+                <option>Closed</option>
+                <option>Declined</option>
+                <option>Open</option>
+                <option>Pending</option>
+                <option>Settled</option>
+              </select>
+            </div>
+            <div class="field"><label for="case_type">Type of Case</label><input type="text" id="case_type"></div>
+
+            <div class="field"><label for="date_of_event">Date of Event</label><input type="date" id="date_of_event"></div>
+            <div class="field"><label for="sol_date">SOL Date</label><input type="date" id="sol_date"></div>
+            <div class="field"><label for="conf_int_check_date">Conf of Int Check</label><input type="date" id="conf_int_check_date"></div>
+
+            <div class="field"><label for="county">County</label><input type="text" id="county"></div>
+          </div>
+
+          <div class="form-grid">
+            <div class="field"><label for="judge">Judge</label><input type="text" id="judge"></div>
+          </div>
+
+          <div class="form-grid">
+            <div class="field"><label for="primary_lawyer_id">Primary Lawyer</label><select id="primary_lawyer_id"></select></div>
+            <div class="field"><label for="secondary_lawyer_id">Secondary Lawyer</label><select id="secondary_lawyer_id"></select></div>
+          </div>
+
+          <div class="form-grid">
+            <div class="field"><label for="legal_assistant_id">Paralegal</label><select id="legal_assistant_id"></select></div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-narrative">
+          <h3>Narrative</h3>
+          <div class="form-grid">
+            <div class="field span-3"><label for="case_synopsis">Case Synopsis</label><textarea id="case_synopsis" rows="3"></textarea></div>
+            <div class="field span-3"><label for="intake_comments">Intake Comments</label><textarea id="intake_comments" rows="3"></textarea></div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-opposing">
+          <h3>Opposing Counsel</h3>
+          <div id="opposing-counsel-placeholder" class="muted hidden">Save the case before adding opposing counsel.</div>
+          <div id="opposing-counsel-content" class="hidden">
+            <table>
+              <thead><tr><th>Name</th><th>Firm</th><th>Phone</th><th>E-mail</th><th></th></tr></thead>
+              <tbody id="opposing-counsel-body"></tbody>
+            </table>
+            <h3 style="margin-top:1.25rem;">Add Opposing Counsel</h3>
+            <div class="form-grid">
+              <div class="field"><label for="oc_name">Name</label><input type="text" id="oc_name"></div>
+              <div class="field"><label for="oc_firm">Firm</label><input type="text" id="oc_firm"></div>
+              <div class="field"><label for="oc_phone">Phone</label><input type="text" id="oc_phone"></div>
+              <div class="field"><label for="oc_email">E-mail</label><input type="email" id="oc_email"></div>
+              <div class="field"><button type="button" id="add-opposing-counsel-btn">Add</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-events">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>Upcoming &amp; Past Events</h3>
+            <button type="button" id="export-ics-btn" class="secondary">Export to Outlook (.ics)</button>
+          </div>
+          <div id="events-placeholder" class="muted hidden">Save the case before adding events.</div>
+          <div id="events-content" class="hidden">
+            <table>
+              <thead><tr><th>Date</th><th>Type</th><th>Description</th><th></th></tr></thead>
+              <tbody id="events-body"></tbody>
+            </table>
+            <h3 style="margin-top:1.25rem;">Add Event</h3>
+            <div class="form-grid">
+              <div class="field"><label for="event_date">Date</label><input type="date" id="event_date"></div>
+              <div class="field"><label for="event_time">Time (optional)</label><input type="time" id="event_time"></div>
+              <div class="field"><label for="event_type">Type</label>
+                <select id="event_type">
+                  <option>Deposition</option>
+                  <option>Filing Deadline</option>
+                  <option>Hearing</option>
+                  <option>Mediation</option>
+                  <option>Other</option>
+                  <option>SOL Deadline</option>
+                  <option>Trial</option>
+                </select>
+              </div>
+              <div class="field"><label for="event_description">Description</label><input type="text" id="event_description"></div>
+              <div class="field"><button type="button" id="add-event-btn">Add Event</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="case-form-footer">
+          <button type="submit">Save Case</button>
+          <button type="button" id="delete-case-btn" class="danger hidden">Delete Case</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <script src="js/common.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/case.js"></script>
+</body>
+</html>

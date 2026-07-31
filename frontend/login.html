@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sign In · ClientTale</title>
+  <script>document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "light");</script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="login-wrap">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>ClientTale — Sign In</h2>
+        <button type="button" id="theme-toggle" class="secondary">Dark Mode</button>
+      </div>
+      <div id="error" class="error-msg hidden"></div>
+      <form id="login-form">
+        <div class="field" style="margin-bottom: 0.8rem;">
+          <label for="username">Username</label>
+          <input type="text" id="username" autocomplete="username" required>
+        </div>
+        <div class="field" style="margin-bottom: 1rem;">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit">Sign In</button>
+      </form>
+    </div>
+  </main>
+  <script src="js/api.js"></script>
+  <script src="js/theme.js"></script>
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById("error");
+      errorEl.classList.add("hidden");
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      try {
+        await Api.login(username, password);
+        location.href = "index.html";
+      } catch (err) {
+        errorEl.textContent = "Invalid username or password.";
+        errorEl.classList.remove("hidden");
+      }
+    });
+
+    Api.me().then(() => { location.href = "index.html"; }).catch(() => {});
+  </script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard · ClientTale</title>
+  <script>document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "light");</script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">ClientTale</div>
+    <div class="spacer"></div>
+    <nav>
+      <a href="index.html">Dashboard</a>
+      <a href="staff.html">Manage Staff</a>
+      <a href="case.html">New Case</a>
+      <button type="button" id="theme-toggle" class="secondary" style="margin-left:1.25rem;">Dark Mode</button>
+      <span id="current-user" class="muted" style="margin-left:1.25rem;"></span>
+      <a href="#" id="logout-btn" style="margin-left:1.25rem;">Sign Out</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>Search Cases</h2>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search by client, injured person, lawyer, paralegal, case number, status, or county...">
+        <button id="clear-search" class="secondary">Clear</button>
+      </div>
+      <div id="search-results"></div>
+    </div>
+
+    <div class="card">
+      <h2>Upcoming Events — All Cases</h2>
+      <table id="upcoming-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Case #</th>
+            <th>Client</th>
+            <th>Status</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody id="upcoming-body">
+          <tr><td colspan="6" class="muted">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="js/common.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
